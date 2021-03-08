@@ -25,7 +25,7 @@ homepage: https://www.yamagi.org/quake2
 **Unsupported** preview builds for Windows can be found at
 https://deponie.yamagi.org/quake2/misc/
 
-## Building OGS Ubuntu
+## Building for the OGS on Ubuntu
 
 **Install Dependancies**
 ```bash
