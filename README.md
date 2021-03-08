@@ -29,20 +29,34 @@ https://deponie.yamagi.org/quake2/misc/
 
 **Install Dependancies**
 ```bash
-sudo apt update -y && sudo apt-get install -y build-essential
+sudo apt update -y && sudo apt-get install -y build-essential libsdl2-dev
 ```
+
+**Required if building on the OGS**
+The SDL Libraries dependancies libegl-dev, libgles-dev and libwayland-dev will fail to install due to the modfied libraries
+
+```bash
+sudo dpkg -i --force-all /var/cache/apt/archives/libegl-dev_1.3.2-1~ubuntu0.20.04.1_arm64.deb
+sudo dpkg -i --force-all /var/cache/apt/archives/libgles-dev_1.3.2-1~ubuntu0.20.04.1_arm64.deb
+sudo dpkg -i --force-all /var/cache/apt/archives/libwayland-dev_1.18.0-1_arm64.deb
+wget https://github.com/southoz/EmulationStation-fcamod-ogs-retrooz/raw/master/libmali-rk-bifrost-g31-rxp0-wayland-gbm_1.7-2%2Bdeb10_arm64.deb
+wget https://github.com/southoz/EmulationStation-fcamod-ogs-retrooz/raw/master/libmali-rk-dev_1.7-1%2Bdeb10_arm64.deb
+sudo dpkg -i --force-all libmali-rk-bifrost-g31-rxp0-wayland-gbm_1.7-2+deb10_arm64.deb
+sudo dpkg -i --force-all libmali-rk-dev_1.7-1+deb10_arm64.deb
+```
+
 **Clone Repository**
 
 ```bash
-git clone --recursive https://github.com/southoz/yquake2-ogs
+git clone https://github.com/southoz/yquake2-ogs
 ```
 
 **Configure and Build**
 
 ```bash
-cd yquake-ogs
+cd yquake2-ogs
 cmake . -DOPENAL_SUPPORT:BOOL=OFF -DVULKAN_SUPPORT:BOOL=OFF
-make
+make -j4
 ```
 The output will be in the release directory
 
