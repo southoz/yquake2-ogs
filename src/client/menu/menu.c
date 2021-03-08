@@ -226,24 +226,28 @@ Key_GetMenuKey(int key)
 		case K_KP_UPARROW:
 		case K_UPARROW:
 		case K_HAT_UP:
+		case K_JOY9:
 			return K_UPARROW;
 
 		case K_TAB:
 		case K_KP_DOWNARROW:
 		case K_DOWNARROW:
 		case K_HAT_DOWN:
+		case K_JOY10:
 			return K_DOWNARROW;
 
 		case K_KP_LEFTARROW:
 		case K_LEFTARROW:
 		case K_HAT_LEFT:
 		case K_TRIG_LEFT:
+		case K_JOY11:
 			return K_LEFTARROW;
 
 		case K_KP_RIGHTARROW:
 		case K_RIGHTARROW:
 		case K_HAT_RIGHT:
 		case K_TRIG_RIGHT:
+		case K_JOY12:
 			return K_RIGHTARROW;
 
 		case K_MOUSE1:
@@ -253,17 +257,12 @@ Key_GetMenuKey(int key)
 		case K_MOUSE5:
 
 		case K_JOY1:
-		case K_JOY2:
 		case K_JOY3:
 		case K_JOY4:
 		case K_JOY5:
 		case K_JOY6:
 		case K_JOY7:
 		case K_JOY8:
-		case K_JOY9:
-		case K_JOY10:
-		case K_JOY11:
-		case K_JOY12:
 		case K_JOY13:
 		case K_JOY14:
 		case K_JOY15:
@@ -290,6 +289,7 @@ Key_GetMenuKey(int key)
 
 		case K_ESCAPE:
 		case K_JOY_BACK:
+		case K_JOY2:
 			return K_ESCAPE;
 	}
 
