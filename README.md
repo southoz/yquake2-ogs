@@ -24,3 +24,26 @@ The official releases (including Windows binaries) can be found at our
 homepage: https://www.yamagi.org/quake2  
 **Unsupported** preview builds for Windows can be found at
 https://deponie.yamagi.org/quake2/misc/
+
+## Building OGS Ubuntu
+
+**Install Dependancies**
+```bash
+sudo apt update -y && sudo apt-get install -y build-essential
+```
+**Clone Repository**
+
+```bash
+git clone --recursive https://github.com/southoz/yquake2-ogs
+```
+
+**Configure and Build**
+
+```bash
+cd yquake-ogs
+cmake . -DOPENAL_SUPPORT:BOOL=OFF -DVULKAN_SUPPORT:BOOL=OFF
+make
+```
+The output will be in the release directory
+
+
