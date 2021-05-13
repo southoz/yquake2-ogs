@@ -17,7 +17,7 @@
  *
  * =======================================================================
  *
- * This file implements an interface to libvorbis for decoding
+ * This file implements an interface to stb_vorbis.c for decoding
  * OGG/Vorbis files. Strongly spoken this file isn't part of the sound
  * system but part of the main client. It justs converts Vorbis streams
  * into normal, raw Wave stream which are injected into the backends as
@@ -51,7 +51,7 @@ static ogg_status_t ogg_status;   /* Status indicator. */
 static stb_vorbis *ogg_file;      /* Ogg Vorbis file. */
 static qboolean ogg_started;      /* Initialization flag. */
 
-enum { MAX_NUM_OGGTRACKS = 32 };
+enum { MAX_NUM_OGGTRACKS = 128 };
 static char* ogg_tracks[MAX_NUM_OGGTRACKS];
 static int ogg_maxfileindex;
 
@@ -239,13 +239,13 @@ static OGG_Read(void)
 	short samples[4096] = {0};
 
 	int read_samples = stb_vorbis_get_samples_short_interleaved(ogg_file, ogg_file->channels, samples,
-		sizeof(samples) / ogg_file->channels);
+		sizeof(samples) / sizeof(short));
 
 	if (read_samples > 0)
 	{
 		ogg_numsamples += read_samples;
 
-		S_RawSamples(read_samples, ogg_file->sample_rate, ogg_file->channels, ogg_file->channels,
+		S_RawSamples(read_samples, ogg_file->sample_rate, sizeof(short), ogg_file->channels,
 			(byte *)samples, ogg_volume->value);
 	}
 	else

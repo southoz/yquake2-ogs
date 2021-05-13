@@ -138,11 +138,21 @@ it's `+set busywait 0` (setting the `busywait` cvar) and `-portable`
   disable it again before playing Ground Zero maps in co-op. By
   default this cvar is disabled (set to 0).
 
+* **g_commanderbody_nogod**: If set to `1` the tank commanders body
+  entity can be destroyed. If the to `0` (the default) it is
+  indestructible.
+
 * **g_footsteps**: If set to `1` (the default) footstep sounds are
   generated when the player faster than 255. This is the behaviour of
   Vanilla Quake II. If set to `2` footestep sound always generated. If
   set to `0` footstep sounds are never generated. Cheat protected to
   `1`.
+
+* **g_fix_triggered**: This cvar, when set to `1`, forces monsters to
+  spawn in normally if they are set to a triggered spawn but do not
+  have a targetname. There are a few cases of this in GroundZero and
+  The Reckoning. This cvar is disabled by default to maintain the
+  original gameplay experience.
 
 * **g_disruptor (Ground Zero only)**: This boolean cvar controls the
   availability of the Disruptor weapon to players. The Disruptor is
@@ -245,8 +255,6 @@ it's `+set busywait 0` (setting the `busywait` cvar) and `-portable`
   dependent on the GPU driver, most of them support `1`, `2`, `4`, `8`
   and `16`. Anisotropic filtering gives a huge improvement to texture
   quality by a negligible performance impact.
-  If vulkan render have used, flag is only toggle anisotropic filtering
-  without use specific level.
 
 * **r_msaa_samples**: Full scene anti aliasing samples. The number of
   samples depends on the GPU driver, most drivers support at least `2`,
@@ -280,6 +288,14 @@ it's `+set busywait 0` (setting the `busywait` cvar) and `-portable`
   a `vid_restart` after changing). The OpenGL 3.2 and Vulkan renderers
   apply this to the window in realtime via shaders (on all platforms).
   This is also set by the brightness slider in the video menu.
+
+* **vid_fullscreen**: Sets the fullscreen mode. When set to `0` (the
+  default) the game runs in window mode. When set to `1` the games
+  switches the display to the requested resolution. That resolution
+  must be supported by the display, otherwise the game tries several
+  steps to recover. When set to `2` a fullscreen window is created.
+  It's recommended to use the displays native resolution with the
+  fullscreen window, use `r_mode -2` to switch to it.
 
 * **vid_maxfps**: The maximum framerate, if `cl_async` is `1`. Otherwise
   `cl_maxfps` is used as maximum framerate. See `cl_async` description
@@ -429,8 +445,6 @@ it's `+set busywait 0` (setting the `busywait` cvar) and `-portable`
 * **vk_showtris**: Display mesh triangles. (default: `0`)
 
 * **vk_lightmap**: Display lightmaps. (default: `0`)
-
-* **vk_aniso**: Toggle anisotropic filtering. (default: `1`)
 
 * **vk_postprocess**: Toggle additional color/gamma correction.
   (default: `1`)

@@ -115,7 +115,7 @@ float		xscaleinv, yscaleinv;
 float		xscaleshrink, yscaleshrink;
 float		aliasxscale, aliasyscale, aliasxcenter, aliasycenter;
 
-mplane_t	screenedge[4];
+cplane_t	screenedge[4];
 
 //
 // refresh flags
@@ -404,7 +404,7 @@ R_RegisterVariables (void)
 	r_vsync = ri.Cvar_Get("r_vsync", "1", CVAR_ARCHIVE);
 	r_customwidth = ri.Cvar_Get("r_customwidth", "1024", CVAR_ARCHIVE);
 	r_customheight = ri.Cvar_Get("r_customheight", "768", CVAR_ARCHIVE);
-	r_fixsurfsky = ri.Cvar_Get("r_fixsurfsky", "1", CVAR_ARCHIVE);
+	r_fixsurfsky = ri.Cvar_Get("r_fixsurfsky", "0", CVAR_ARCHIVE);
 
 	vid_fullscreen = ri.Cvar_Get( "vid_fullscreen", "0", CVAR_ARCHIVE );
 	vid_gamma = ri.Cvar_Get( "vid_gamma", "1.0", CVAR_ARCHIVE );
@@ -982,7 +982,7 @@ R_FindTopnode (vec3_t mins, vec3_t maxs)
 
 	while (1)
 	{
-		mplane_t *splitplane;
+		cplane_t *splitplane;
 		int sides;
 
 		if (node->visframe != r_visframecount)
@@ -1445,7 +1445,7 @@ RE_BeginFrame( float camera_separation )
 	// run without speed optimization
 	fastmoving = false;
 
-	while (r_mode->modified || vid_fullscreen->modified || r_vsync->modified)
+	while (r_vsync->modified)
 	{
 		RE_SetMode();
 	}
@@ -1481,8 +1481,6 @@ RE_SetMode(void)
 
 	fullscreen = (int)vid_fullscreen->value;
 
-	vid_fullscreen->modified = false;
-	r_mode->modified = false;
 	r_vsync->modified = false;
 
 	/* a bit hackish approach to enable custom resolutions:
@@ -1510,7 +1508,6 @@ RE_SetMode(void)
 		if (err == rserr_invalid_fullscreen)
 		{
 			ri.Cvar_SetValue("vid_fullscreen", 0);
-			vid_fullscreen->modified = false;
 			R_Printf(PRINT_ALL, "%s() - fullscreen unavailable in this mode\n", __func__);
 
 			if (SWimp_SetMode(&vid.width, &vid.height, r_mode->value, 0) == rserr_ok)
@@ -1868,6 +1865,10 @@ GetRefAPI(refimport_t imp)
 	refexport.EndWorldRenderpass = RE_EndWorldRenderpass;
 	refexport.EndFrame = RE_EndFrame;
 
+    // Tell the client that we're unsing the
+	// new renderer restart API.
+    ri.Vid_RequestRestart(RESTART_NO);
+
 	Swap_Init ();
 
 	return refexport;
@@ -1901,7 +1902,7 @@ RE_InitContext(void *win)
 
 	if(win == NULL)
 	{
-		ri.Sys_Error(ERR_FATAL, "RE_InitContext() must not be called with NULL argument!");
+		ri.Sys_Error(ERR_FATAL, "%s() must not be called with NULL argument!", __func__);
 		return false;
 	}
 
@@ -2299,7 +2300,7 @@ SWimp_SetMode(int *pwidth, int *pheight, int mode, int fullscreen )
 
 	R_Printf(PRINT_ALL, " %dx%d (vid_fullscreen %i)\n", *pwidth, *pheight, fullscreen);
 
-	if (fullscreen == 1)
+	if (fullscreen == 2)
 	{
 		int real_height, real_width;
 

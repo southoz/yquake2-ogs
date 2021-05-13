@@ -217,7 +217,7 @@ GL3_Register(void)
 	r_drawentities = ri.Cvar_Get("r_drawentities", "1", 0);
 	r_drawworld = ri.Cvar_Get("r_drawworld", "1", 0);
 	r_fullbright = ri.Cvar_Get("r_fullbright", "0", 0);
-	r_fixsurfsky = ri.Cvar_Get("r_fixsurfsky", "1", CVAR_ARCHIVE);
+	r_fixsurfsky = ri.Cvar_Get("r_fixsurfsky", "0", CVAR_ARCHIVE);
 
 	/* don't bilerp characters and crosshairs */
 	gl_nolerp_list = ri.Cvar_Get("r_nolerp_list", "pics/conchars.pcx pics/ch1.pcx pics/ch2.pcx pics/ch3.pcx", 0);
@@ -372,9 +372,6 @@ GL3_SetMode(void)
 	int fullscreen;
 
 	fullscreen = (int)vid_fullscreen->value;
-
-	vid_fullscreen->modified = false;
-	r_mode->modified = false;
 
 	/* a bit hackish approach to enable custom resolutions:
 	   Glimp_SetMode needs these values set for mode -1 */
@@ -1689,12 +1686,6 @@ GL3_Clear(void)
 void
 GL3_BeginFrame(float camera_separation)
 {
-	/* change modes if necessary */
-	if (r_mode->modified)
-	{
-		vid_fullscreen->modified = true;
-	}
-
 #if 0 // TODO: stereo stuff
 	gl_state.camera_separation = camera_separation;
 	// force a vid_restart if gl1_stereo has been modified.
@@ -1877,6 +1868,10 @@ GetRefAPI(refimport_t imp)
 	re.BeginFrame = GL3_BeginFrame;
 	re.EndWorldRenderpass = GL3_EndWorldRenderpass;
 	re.EndFrame = GL3_EndFrame;
+
+    // Tell the client that we're unsing the
+	// new renderer restart API.
+    ri.Vid_RequestRestart(RESTART_NO);
 
 	return re;
 }

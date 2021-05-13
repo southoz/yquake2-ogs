@@ -101,7 +101,7 @@ void Mod_Reallocate (void)
 		models_known_max *= 2;
 		// free up
 		Mod_FreeAll();
-		free(models_known);
+		Mod_FreeModelsKnown();
 	}
 
 	if (models_known_max < (mod_max * 4))
@@ -175,6 +175,17 @@ void Mod_FreeAll (void)
 		if (models_known[i].extradatasize)
 			Mod_Free (&models_known[i]);
 	}
+}
+
+/*
+================
+Mod_FreeModelsKnown
+================
+*/
+void Mod_FreeModelsKnown (void)
+{
+	free(models_known);
+	models_known = NULL;
 }
 
 /*
@@ -538,7 +549,7 @@ static int calcTexinfoAndFacesSize(const lump_t *fl, byte *mod_base, const lump_
 
 			// Vk_SubdivideSurface(out, loadmodel); /* cut up polygon for warps */
 			// for each (pot. recursive) call to R_SubdividePolygon():
-			//   sizeof(glpoly_t) + ((numverts - 4) + 2) * VERTEXSIZE*sizeof(float)
+			//   sizeof(vkpoly_t) + ((numverts - 4) + 2) * VERTEXSIZE*sizeof(float)
 
 			// this is tricky, how much is allocated depends on the size of the surface
 			// which we don't know (we'd need the vertices etc to know, but we can't load
@@ -1140,9 +1151,18 @@ static void Mod_LoadAliasModel (model_t *mod, void *buffer, int modfilelen)
 	//
 	pincmd = (int *) ((byte *)pinmodel + pheader->ofs_glcmds);
 	poutcmd = (int *) ((byte *)pheader + pheader->ofs_glcmds);
-	for (i=0 ; i<pheader->num_glcmds ; i++)
+	for (i=0; i < pheader->num_glcmds; i++)
+	{
 		poutcmd[i] = LittleLong (pincmd[i]);
+	}
 
+	if (poutcmd[pheader->num_glcmds-1] != 0)
+	{
+		R_Printf(PRINT_ALL, "%s: Entity %s has possible last element issues with %d verts.\n",
+			__func__,
+			mod->name,
+			poutcmd[pheader->num_glcmds-1]);
+	}
 
 	// register all skins
 	memcpy ((char *)pheader + pheader->ofs_skins, (char *)pinmodel + pheader->ofs_skins,

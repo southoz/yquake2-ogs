@@ -3331,6 +3331,7 @@ StartServer_MenuInit(void)
     if (mapnames == NULL)
     {
         int i, length;
+        size_t nummapslen;
 
         nummaps = 0;
         s_startmap_list.curvalue = 0;
@@ -3359,11 +3360,12 @@ StartServer_MenuInit(void)
             Com_Error(ERR_DROP, "no maps in maps.lst\n");
         }
 
-        mapnames = malloc(sizeof(char *) * (nummaps + 1));
+        nummapslen = sizeof(char *) * (nummaps + 1);
+        mapnames = malloc(nummapslen);
 
-        YQ2_COM_CHECK_OOM(mapnames, "malloc(sizeof(char *) * (nummaps + 1))", sizeof(char *) * (nummaps + 1))
+        YQ2_COM_CHECK_OOM(mapnames, "malloc(sizeof(char *) * (nummaps + 1))", nummapslen)
 
-        memset(mapnames, 0, sizeof(char *) * (nummaps + 1));
+        memset(mapnames, 0, nummapslen);
 
         s = buffer;
 
@@ -3385,10 +3387,8 @@ StartServer_MenuInit(void)
             strcpy(longname, COM_Parse(&s));
             Com_sprintf(scratch, sizeof(scratch), "%s\n%s", longname, shortname);
 
-            mapnames[i] = malloc(strlen(scratch) + 1);
-            YQ2_COM_CHECK_OOM(mapnames, "malloc()", strlen(scratch)+1)
-
-            strcpy(mapnames[i], scratch);
+            mapnames[i] = strdup(scratch);
+            YQ2_COM_CHECK_OOM(mapnames[i], "strdup(scratch)", strlen(scratch)+1)
         }
 
         mapnames[nummaps] = 0;
@@ -4758,7 +4758,6 @@ PlayerConfig_MenuDraw(void)
 
     if (s_pmi[s_player_model_box.curvalue].skindisplaynames)
     {
-        static int yaw;
         entity_t entity;
         char scratch[MAX_QPATH];
 
@@ -4780,12 +4779,11 @@ PlayerConfig_MenuDraw(void)
         entity.frame = 0;
         entity.oldframe = 0;
         entity.backlerp = 0.0;
-        entity.angles[1] = (float)yaw;
 
-        if (++yaw > 360)
-        {
-            yaw -= 360;
-        }
+        int curTime = Sys_Milliseconds();
+        // one full turn is 3s = 3000ms => 3000/360 deg per millisecond
+        curTime = curTime % 3000;
+        entity.angles[1] = (float)curTime/(3000.0f/360.0f);
 
         refdef.areabits = 0;
         refdef.num_entities = 1;

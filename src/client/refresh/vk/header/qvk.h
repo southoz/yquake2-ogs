@@ -68,12 +68,8 @@ typedef enum
 	S_LINEAR = 1,
 	S_MIPMAP_NEAREST = 2,
 	S_MIPMAP_LINEAR = 3,
-	S_ANISO_NEAREST = 4,
-	S_ANISO_LINEAR = 5,
-	S_ANISO_MIPMAP_NEAREST = 6,
-	S_ANISO_MIPMAP_LINEAR = 7,
-	S_NEAREST_UNNORMALIZED = 8,
-	S_SAMPLER_CNT = 9
+	S_NEAREST_UNNORMALIZED = 4,
+	S_SAMPLER_CNT = 5
 } qvksampler_t;
 
 #define NUM_SAMPLERS (S_SAMPLER_CNT * 2)
@@ -232,11 +228,8 @@ extern VkDescriptorSetLayout vk_samplerDescSetLayout;
 // *** pipelines ***
 extern qvkpipeline_t vk_drawTexQuadPipeline[RP_COUNT];
 extern qvkpipeline_t vk_drawColorQuadPipeline[RP_COUNT];
-extern qvkpipeline_t vk_drawModelPipelineStrip[RP_COUNT];
 extern qvkpipeline_t vk_drawModelPipelineFan[RP_COUNT];
-extern qvkpipeline_t vk_drawNoDepthModelPipelineStrip;
 extern qvkpipeline_t vk_drawNoDepthModelPipelineFan;
-extern qvkpipeline_t vk_drawLefthandModelPipelineStrip;
 extern qvkpipeline_t vk_drawLefthandModelPipelineFan;
 extern qvkpipeline_t vk_drawNullModelPipeline;
 extern qvkpipeline_t vk_drawParticlesPipeline;
@@ -245,11 +238,11 @@ extern qvkpipeline_t vk_drawSpritePipeline;
 extern qvkpipeline_t vk_drawPolyPipeline;
 extern qvkpipeline_t vk_drawPolyLmapPipeline;
 extern qvkpipeline_t vk_drawPolyWarpPipeline;
+extern qvkpipeline_t vk_drawPolySolidWarpPipeline;
 extern qvkpipeline_t vk_drawBeamPipeline;
 extern qvkpipeline_t vk_drawSkyboxPipeline;
 extern qvkpipeline_t vk_drawDLightPipeline;
 extern qvkpipeline_t vk_showTrisPipeline;
-extern qvkpipeline_t vk_shadowsPipelineStrip;
 extern qvkpipeline_t vk_shadowsPipelineFan;
 extern qvkpipeline_t vk_worldWarpPipeline;
 extern qvkpipeline_t vk_postprocessPipeline;
@@ -260,6 +253,10 @@ extern qvktexture_t vk_colorbuffer;
 extern qvktexture_t vk_colorbufferWarp;
 // indicator if the frame is currently being rendered
 extern qboolean vk_frameStarted;
+// Indicates if the renderer needs to be restarted.
+extern qboolean vk_restartNeeded;
+// is QVk initialized?
+extern qboolean vk_initialized;
 
 // function pointers
 extern PFN_vkCreateDebugUtilsMessengerEXT qvkCreateDebugUtilsMessengerEXT;
@@ -271,8 +268,12 @@ extern PFN_vkCmdEndDebugUtilsLabelEXT qvkCmdEndDebugUtilsLabelEXT;
 extern PFN_vkCmdInsertDebugUtilsLabelEXT qvkInsertDebugUtilsLabelEXT;
 
 // The Interface Functions (tm)
-qboolean	QVk_Init(SDL_Window *window);
+void		QVk_SetWindow(SDL_Window*);
+qboolean	QVk_Init(void);
+void		QVk_PostInit(void);
+void		QVk_WaitAndShutdownAll(void);
 void		QVk_Shutdown(void);
+void		QVk_Restart(void);
 void		QVk_CreateValidationLayers(void);
 void		QVk_DestroyValidationLayers(void);
 qboolean	QVk_CreateDevice(int preferredDeviceIdx);
@@ -308,11 +309,13 @@ uint8_t*	QVk_GetVertexBuffer(VkDeviceSize size, VkBuffer *dstBuffer, VkDeviceSiz
 uint8_t*	QVk_GetUniformBuffer(VkDeviceSize size, uint32_t *dstOffset, VkDescriptorSet *dstUboDescriptorSet);
 uint8_t*	QVk_GetStagingBuffer(VkDeviceSize size, int alignment, VkCommandBuffer *cmdBuffer, VkBuffer *buffer, uint32_t *dstOffset);
 VkBuffer	QVk_GetTriangleFanIbo(VkDeviceSize indexCount);
+VkBuffer	QVk_GetTriangleStripIbo(VkDeviceSize indexCount);
 void		QVk_DrawColorRect(float *ubo, VkDeviceSize uboSize, qvkrenderpasstype_t rpType);
 void		QVk_DrawTexRect(const float *ubo, VkDeviceSize uboSize, qvktexture_t *texture);
 void		QVk_BindPipeline(qvkpipeline_t *pipeline);
 void		QVk_SubmitStagingBuffers(void);
 void		Qvk_MemoryBarrier(VkCommandBuffer cmdBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask);
+qboolean	QVk_CheckExtent(void);
 
 // debug label related functions
 void		QVk_DebugSetObjectName(uint64_t obj, VkObjectType objType, const char *objName);

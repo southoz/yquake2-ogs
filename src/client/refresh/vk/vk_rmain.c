@@ -1127,6 +1127,9 @@ RE_RenderFrame
 static void
 RE_RenderFrame (refdef_t *fd)
 {
+	if (!vk_frameStarted)
+		return;
+
 	RE_RenderView( fd );
 	R_SetLightLevel ();
 	R_SetVulkan2D (&vk_viewport, &vk_scissor);
@@ -1187,7 +1190,7 @@ R_Register( void )
 	vk_underwater = ri.Cvar_Get("vk_underwater", "1", CVAR_ARCHIVE);
 	/* don't bilerp characters and crosshairs */
 	vk_nolerp_list = ri.Cvar_Get("r_nolerp_list", "pics/conchars.pcx pics/ch1.pcx pics/ch2.pcx pics/ch3.pcx", 0);
-	r_fixsurfsky = ri.Cvar_Get("r_fixsurfsky", "1", CVAR_ARCHIVE);
+	r_fixsurfsky = ri.Cvar_Get("r_fixsurfsky", "0", CVAR_ARCHIVE);
 
 	// clamp vk_msaa to accepted range so that video menu doesn't crash on us
 	if (vk_msaa->value < 0)
@@ -1251,7 +1254,6 @@ qboolean R_SetMode (void)
 	r_vsync->modified = false;
 
 	fullscreen = (int)vid_fullscreen->value;
-	vid_fullscreen->modified = false;
 	vid_gamma->modified = false;
 
 	vk_msaa->modified = false;
@@ -1280,7 +1282,6 @@ qboolean R_SetMode (void)
 		if (err == rserr_invalid_fullscreen)
 		{
 			ri.Cvar_SetValue("vid_fullscreen", 0);
-			vid_fullscreen->modified = false;
 			R_Printf(PRINT_ALL, "%s() - fullscreen unavailable in this mode\n", __func__);
 			if (Vkimp_SetMode((int*)&vid.width, (int*)&vid.height, r_mode->value, false) == rserr_ok)
 				return true;
@@ -1328,11 +1329,6 @@ static qboolean RE_Init( void )
 	// print device information during startup
 	Vk_Strings_f();
 
-	Vk_InitImages();
-	Mod_Init();
-	RE_InitParticleTexture();
-	Draw_InitLocal();
-
 	R_Printf(PRINT_ALL, "Successfully initialized Vulkan!\n");
 
 	return true;
@@ -1347,9 +1343,8 @@ static qboolean RE_Init( void )
 */
 static void RE_ShutdownContext( void )
 {
-
 	// Shutdown Vulkan subsystem
-	QVk_Shutdown();
+	QVk_WaitAndShutdownAll();
 }
 
 /*
@@ -1365,14 +1360,7 @@ void RE_Shutdown (void)
 	ri.Cmd_RemoveCommand("screenshot");
 	ri.Cmd_RemoveCommand( "modellist" );
 
-	if (vk_device.logical != VK_NULL_HANDLE)
-	{
-		vkDeviceWaitIdle(vk_device.logical);
-	}
-
-	Mod_FreeAll();
-	Vk_ShutdownImages();
-	RE_ShutdownContext();
+	QVk_WaitAndShutdownAll();
 }
 
 /*
@@ -1386,15 +1374,62 @@ RE_BeginFrame( float camera_separation )
 	// world has not rendered yet
 	world_rendered = false;
 
+	/* VK hasn't been initialized yet. I'm pretty sure that
+	   we can't get here without having called QVk_Init(), 
+	   but better save than sorry. */
+	if (!vk_initialized)
+	{
+		vk_frameStarted = false;
+		return;
+	}
+
+	/* Some GPU drivers set a maximum extent size of 0x0 when
+	   the window is minimized. But a swapchain with an extent
+	   size of 0x0 is invalid. This leads to the following
+	   problem:
+
+	   1. The window is minimized, the extent size changes and
+	      the Vulkan state get's corrupted. QVk_EndFrame()
+	      above or QVk_BeginFrame() below detect the Vulkan
+	      state as corrupted, set vk_frameStated to false and
+	      request a restart by setting vk_restartNeeded to
+	      true.
+	   2. RE_EndFrame() triggers the restart. QVk_Shutdown()
+	      is successfull, but QVk_Init() can't create a valid
+	      swapchains and errors out. An incomplete internal
+	      renderer state is left behind. The only way out is
+	      to trigger a full render restart.
+	   3. The full renderer restart would lead to a restart
+	      loop: Restart -> QVk_Init() fails -> restart -> ...
+	      The only alternative is not to restart. Instead the
+	      renderer could error out, that would print an error
+	      message and quit the client.
+	  
+	    Work around this by not starting the frame or restarting
+	    the renderer, as long as the maximum extent size is 0x0.
+	    This is part 1 (the state corruption war detect in the
+	    last frame), part 2 (the state corruption was detected in
+	    the current frame) is in RE_EndFrame(). */
+	if (vk_restartNeeded)
+	{
+		if (!QVk_CheckExtent())
+		{
+			vk_frameStarted = false;
+			return;
+		}
+	}
+
 	// if ri.Sys_Error() had been issued mid-frame, we might end up here without properly submitting the image, so call QVk_EndFrame to be safe
-	QVk_EndFrame(true);
+	if (QVk_EndFrame(true) != VK_SUCCESS)
+		vk_restartNeeded = true;
+
 	/*
 	** change modes if necessary
 	*/
-	if (r_mode->modified || vid_fullscreen->modified || vk_msaa->modified || r_clear->modified || vk_picmip->modified ||
-		vk_validation->modified || vk_texturemode->modified || vk_lmaptexturemode->modified || vk_aniso->modified ||
-		vk_mip_nearfilter->modified || vk_sampleshading->modified || r_vsync->modified || vk_device_idx->modified ||
-		vk_overbrightbits->modified)
+	if (r_mode->modified || vk_msaa->modified || r_clear->modified || vk_picmip->modified ||
+		vk_validation->modified || vk_texturemode->modified || vk_lmaptexturemode->modified ||
+		vk_aniso->modified || vk_mip_nearfilter->modified || vk_sampleshading->modified ||
+		r_vsync->modified || vk_device_idx->modified || vk_overbrightbits->modified)
 	{
 		if (vk_texturemode->modified || vk_lmaptexturemode->modified || vk_aniso->modified)
 		{
@@ -1411,24 +1446,12 @@ RE_BeginFrame( float camera_separation )
 
 			vk_aniso->modified = false;
 		}
-		else
-		{
-			vid_fullscreen->modified = true;
-		}
 	}
 
-	VkResult swapChainValid = QVk_BeginFrame(&vk_viewport, &vk_scissor);
-	// if the swapchain is invalid, just recreate the video system and revert to safe windowed mode
-	if (swapChainValid != VK_SUCCESS)
-	{
-		vid_fullscreen->value = false;
-		vid_fullscreen->modified = true;
-		ri.Cvar_SetValue("vid_fullscreen", 0);
-	}
+	if (QVk_BeginFrame(&vk_viewport, &vk_scissor) != VK_SUCCESS)
+		vk_restartNeeded = true;
 	else
-	{
 		QVk_BeginRenderpass(RP_WORLD);
-	}
 }
 
 /*
@@ -1439,9 +1462,23 @@ RE_EndFrame
 static void
 RE_EndFrame( void )
 {
-	QVk_EndFrame(false);
+	if (QVk_EndFrame(false) != VK_SUCCESS)
+		vk_restartNeeded = true;
+
 	// world has not rendered yet
 	world_rendered = false;
+
+	/* Part two of the 'maximum extent size may be 0x0'
+	 * work around. See the explanation in RE_BeginFrame()
+	 * for details. */
+	if (vk_restartNeeded)
+	{
+		if (QVk_CheckExtent())
+		{
+			QVk_Restart();
+			vk_restartNeeded = false;
+		}
+	}
 }
 
 /*
@@ -1590,11 +1627,14 @@ RE_InitContext(void *win)
 	SDL_SetWindowTitle(window, title);
 
 	// window is ready, initialize Vulkan now
-	if (!QVk_Init(window))
+	QVk_SetWindow(window);
+	if (!QVk_Init())
 	{
 		R_Printf(PRINT_ALL, "%s() - could not initialize Vulkan!\n", __func__);
 		return false;
 	}
+
+	QVk_PostInit();
 
 	return true;
 }
@@ -1643,11 +1683,8 @@ GetRefAPI
 Q2_DLL_EXPORTED refexport_t
 GetRefAPI(refimport_t imp)
 {
-	// struct for save refexport callbacks, copy of re struct from main file
-	// used different variable name for prevent confusion and cppcheck warnings
-	refexport_t	refexport;
+	refexport_t refexport = {0};
 
-	memset(&refexport, 0, sizeof(refexport_t));
 	ri = imp;
 
 	refexport.api_version = API_VERSION;
@@ -1682,6 +1719,10 @@ GetRefAPI(refimport_t imp)
 	refexport.BeginFrame = RE_BeginFrame;
 	refexport.EndWorldRenderpass = RE_EndWorldRenderpass;
 	refexport.EndFrame = RE_EndFrame;
+
+    // Tell the client that we're unsing the
+	// new renderer restart API.
+    ri.Vid_RequestRestart(RESTART_NO);
 
 	Swap_Init ();
 

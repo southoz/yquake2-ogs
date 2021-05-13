@@ -75,12 +75,12 @@ GetRenderer(void)
 	{
 		return 1;
 	}
-	else if (Q_stricmp(vid_renderer->string, "soft") == 0)
+#ifdef USE_REFVK
+	else if (Q_stricmp(vid_renderer->string, "vk") == 0)
 	{
 		return 2;
 	}
-#ifdef USE_REFVK
-	else if (Q_stricmp(vid_renderer->string, "vk") == 0)
+	else if (Q_stricmp(vid_renderer->string, "soft") == 0)
 	{
 		return 3;
 	}
@@ -89,6 +89,10 @@ GetRenderer(void)
 		return 4;
 	}
 #else
+	else if (Q_stricmp(vid_renderer->string, "soft") == 0)
+	{
+		return 2;
+	}
 	else
 	{
 		return 3;
@@ -133,21 +137,6 @@ FOVCallback(void *s) {
 }
 
 static void
-AnisotropicCallback(void *s)
-{
-	menulist_s *list = (menulist_s *)s;
-
-	if (list->curvalue == 0)
-	{
-		Cvar_SetValue("r_anisotropic", 0);
-	}
-	else
-	{
-		Cvar_SetValue("r_anisotropic", pow(2, list->curvalue));
-	}
-}
-
-static void
 ResetDefaults(void *unused)
 {
 	VID_MenuInit();
@@ -177,15 +166,21 @@ ApplyChanges(void *unused)
 			Cvar_Set("vid_renderer", "gl3");
 			restart = true;
 		}
+#ifdef USE_REFVK
 		else if (s_renderer_list.curvalue == 2)
+		{
+			Cvar_Set("vid_renderer", "vk");
+			restart = true;
+		}
+		else if (s_renderer_list.curvalue == 3)
 		{
 			Cvar_Set("vid_renderer", "soft");
 			restart = true;
 		}
-#ifdef USE_REFVK
-		else if (s_renderer_list.curvalue == 3)
+#else
+		else if (s_renderer_list.curvalue == 2)
 		{
-			Cvar_Set("vid_renderer", "vk");
+			Cvar_Set("vid_renderer", "soft");
 			restart = true;
 		}
 #endif
@@ -195,19 +190,19 @@ ApplyChanges(void *unused)
 	if (!strcmp(s_mode_list.itemnames[s_mode_list.curvalue],
 		AUTO_MODE_NAME))
 	{
-		/* Restarts automatically */
 		Cvar_SetValue("r_mode", -2);
+		restart = true;
 	}
 	else if (!strcmp(s_mode_list.itemnames[s_mode_list.curvalue],
 		CUSTOM_MODE_NAME))
 	{
-		/* Restarts automatically */
 		Cvar_SetValue("r_mode", -1);
+		restart = true;
 	}
 	else
 	{
-		/* Restarts automatically */
 		Cvar_SetValue("r_mode", s_mode_list.curvalue);
+		restart = true;
 	}
 
 	if (s_display_list.curvalue != GLimp_GetWindowDisplayIndex() )
@@ -234,13 +229,40 @@ ApplyChanges(void *unused)
 	}
 
 	/* Restarts automatically */
-	Cvar_SetValue("vid_fullscreen", s_fs_box.curvalue);
+	if (vid_fullscreen->value != s_fs_box.curvalue)
+	{
+		Cvar_SetValue("vid_fullscreen", s_fs_box.curvalue);
+		restart = true;
+	}
+
+	if (s_fs_box.curvalue == 2)
+	{
+		Cvar_SetValue("r_mode", -2.0f);
+	}
 
 	/* vertical sync */
 	if (r_vsync->value != s_vsync_list.curvalue)
 	{
 		Cvar_SetValue("r_vsync", s_vsync_list.curvalue);
 		restart = true;
+	}
+
+	/* anisotropic filtering */
+	if (s_af_list.curvalue == 0)
+	{
+		if (gl_anisotropic->value != 0)
+		{
+			Cvar_SetValue("r_anisotropic", 0);
+			restart = true;
+		}
+	}
+	else
+	{
+		if (gl_anisotropic->value != pow(2, s_af_list.curvalue))
+		{
+			Cvar_SetValue("r_anisotropic", pow(2, s_af_list.curvalue));
+			restart = true;
+		}
 	}
 
 	/* multisample anti-aliasing */
@@ -277,10 +299,10 @@ VID_MenuInit(void)
 	static const char *renderers[] = {
 			"[OpenGL 1.4]",
 			"[OpenGL 3.2]",
-			"[Software  ]",
 #ifdef USE_REFVK
 			"[Vulkan    ]",
 #endif
+			"[Software  ]",
 			CUSTOM_MODE_NAME,
 			0
 	};
@@ -344,8 +366,8 @@ VID_MenuInit(void)
 
 	static const char *fullscreen_names[] = {
 			"no",
-			"keep resolution",
-			"switch resolution",
+			"native fullscreen",
+			"fullscreen window",
 			0
 	};
 
@@ -521,7 +543,6 @@ VID_MenuInit(void)
 	s_af_list.generic.name = "aniso filtering";
 	s_af_list.generic.x = 0;
 	s_af_list.generic.y = (y += 10);
-	s_af_list.generic.callback = AnisotropicCallback;
 	s_af_list.itemnames = pow2_names;
 	s_af_list.curvalue = 0;
 	if (gl_anisotropic->value)
